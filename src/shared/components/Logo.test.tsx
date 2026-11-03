@@ -18,10 +18,19 @@ describe("Logo", () => {
     expect(svg).toHaveAttribute("height", "120");
   });
 
-  it("renders the dollar sign in the graphic", () => {
-    const { container } = render(<Logo />);
-    const text = container.querySelector("text");
-    expect(text?.textContent).toContain("$");
+  it("fills the app tile with a gradient referenced by a unique id", () => {
+    const { container } = render(
+      <>
+        <Logo />
+        <Logo />
+      </>,
+    );
+    const gradients = container.querySelectorAll("linearGradient");
+    expect(gradients).toHaveLength(2);
+    expect(gradients[0].id).not.toBe(gradients[1].id);
+
+    const tile = container.querySelector('rect[rx="116"]');
+    expect(tile).toHaveAttribute("fill", `url(#${gradients[0].id})`);
   });
 
   it("omits loading animations when loading is omitted or false", () => {
