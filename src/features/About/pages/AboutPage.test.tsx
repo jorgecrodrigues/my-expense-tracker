@@ -1,10 +1,14 @@
 // @vitest-environment jsdom
 import { ChakraProvider, defaultSystem } from "@chakra-ui/react";
-import { describe, expect, it } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it } from "vitest";
+import { cleanup, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 
 import AboutPage from "./AboutPage";
+
+afterEach(() => {
+  cleanup();
+});
 
 function renderAbout() {
   return render(
@@ -33,6 +37,18 @@ describe("AboutPage", () => {
     expect(
       screen.getByRole("heading", { name: "Contact" }),
     ).toBeInTheDocument();
+  });
+
+  it("lists every main feature of the app", () => {
+    renderAbout();
+
+    const items = screen.getAllByRole("listitem");
+    expect(items.map((item) => item.querySelector("p")?.textContent)).toEqual([
+      "Dashboard",
+      "Expenses & bills",
+      "Credit card statements",
+      "Attachments",
+    ]);
   });
 
   it("renders a mailto contact link", () => {
