@@ -12,6 +12,16 @@ export const creditCardStatementStatusValidator = v.union(
   v.literal("failed"),
 );
 
+export const creditCardStatementSortFieldValidator = v.union(
+  v.literal("uploadedAt"),
+  v.literal("referenceMonth"),
+  v.literal("issuer"),
+  v.literal("dueDate"),
+  v.literal("totalAmountCents"),
+);
+
+export const sortOrderValidator = v.union(v.literal("asc"), v.literal("desc"));
+
 export const creditCardTransactionTypeValidator = v.union(
   v.literal("purchase"),
   v.literal("refund"),
@@ -138,6 +148,10 @@ export type CreditCardIssuer = Infer<typeof creditCardIssuerValidator>;
 export type CreditCardStatementStatus = Infer<
   typeof creditCardStatementStatusValidator
 >;
+export type CreditCardStatementSortField = Infer<
+  typeof creditCardStatementSortFieldValidator
+>;
+export type SortOrder = Infer<typeof sortOrderValidator>;
 export type CreditCardTransactionType = Infer<
   typeof creditCardTransactionTypeValidator
 >;
