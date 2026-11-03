@@ -98,96 +98,112 @@ export default function SignIn() {
     <Flex
       as="main"
       minH="100dvh"
-      direction={{ base: "column", md: "row" }}
-      justify={{ base: "center", md: "flex-start" }}
+      direction="column"
+      justify="center"
       pt="env(safe-area-inset-top)"
       pb="env(safe-area-inset-bottom)"
+      bgGradient={{ md: "to-br" }}
+      gradientFrom="orange.600/25"
+      gradientVia="bg"
+      gradientTo="purple.500/25"
     >
       <Flex
-        flex={{ md: "1" }}
-        direction="column"
-        justify="center"
-        gap={10}
-        px={{ base: 6, md: 12, xl: 20 }}
-        pt={{ base: 10, md: 12 }}
-        pb={{ base: 8, md: 12 }}
-        align={{ base: "center", md: "flex-start" }}
-        textAlign={{ base: "center", md: "start" }}
-        bgGradient={{ md: "to-br" }}
-        gradientFrom="orange.600/25"
-        gradientVia="bg"
-        gradientTo="purple.500/25"
-        borderEndWidth={{ md: "1px" }}
-        borderColor="border.subtle"
+        w="full"
+        maxW="6xl"
+        mx="auto"
+        direction={{ base: "column", md: "row" }}
+        align={{ md: "center" }}
       >
-        <Stack gap={3} align={{ base: "center", md: "flex-start" }}>
-          <BrandIcon boxSize={{ base: 14, md: 16 }} {...pageStaggerEnter(0)} />
-          <Heading
-            as="h1"
-            size={{ base: "2xl", md: "4xl" }}
-            letterSpacing="tight"
-            {...pageStaggerEnter(100)}
-          >
-            My Expense Tracker
-          </Heading>
-          <Text
-            color="fg.muted"
-            fontSize={{ base: "sm", md: "lg" }}
-            maxW="md"
-            {...pageStaggerEnter(200)}
-          >
-            See where your money goes, month by month and category by category.
-          </Text>
-        </Stack>
-        <Box hideBelow="md" maxW="md">
-          <FeatureList />
-        </Box>
-      </Flex>
-
-      <Flex
-        flex={{ md: "1" }}
-        direction="column"
-        align="center"
-        justify={{ base: "flex-start", md: "center" }}
-        gap={8}
-        px={{ base: 4, md: 12 }}
-        pb={{ base: 10, md: 12 }}
-      >
-        <Card.Root
-          w="full"
-          maxW="sm"
-          variant="outline"
-          borderRadius="xl"
-          {...pageStaggerEnter(300)}
+        <Flex
+          flex={{ md: "1" }}
+          direction="column"
+          justify="center"
+          align="center"
+          px={{ base: 6, md: 12 }}
+          pt={{ base: 10, md: 12 }}
+          pb={{ base: 8, md: 12 }}
+          textAlign={{ base: "center", md: "start" }}
         >
-          <Card.Body gap={5} p={{ base: 5, md: 6 }}>
-            <Stack gap={1} textAlign="center">
-              <Heading as="h2" size="lg">
-                Sign in to your account
+          <Stack
+            w="full"
+            maxW="md"
+            gap={10}
+            align={{ base: "center", md: "flex-start" }}
+          >
+            <Stack gap={3} align={{ base: "center", md: "flex-start" }}>
+              <BrandIcon
+                boxSize={{ base: 14, md: 16 }}
+                {...pageStaggerEnter(0)}
+              />
+              <Heading
+                as="h1"
+                size={{ base: "2xl", md: "4xl" }}
+                letterSpacing="tight"
+                {...pageStaggerEnter(100)}
+              >
+                My Expense Tracker
               </Heading>
-              <Text fontSize="sm" color="fg.muted">
-                Use your GitHub account to sign in and manage your expenses.
+              <Text
+                color="fg.muted"
+                fontSize={{ base: "sm", md: "lg" }}
+                {...pageStaggerEnter(200)}
+              >
+                See where your money goes, month by month and category by
+                category.
               </Text>
             </Stack>
-            <Button
-              size="lg"
-              w="full"
-              onClick={handleSignIn}
-              loading={signingIn}
-              loadingText="Redirecting to GitHub..."
-            >
-              <IconBrandGithub />
-              Sign in with GitHub
-            </Button>
-            <Text fontSize="xs" color="fg.subtle" textAlign="center">
-              Your data stays private to your account.
-            </Text>
-          </Card.Body>
-        </Card.Root>
+            <Box hideBelow="md">
+              <FeatureList />
+            </Box>
+          </Stack>
+        </Flex>
 
-        <Box hideFrom="md" w="full" maxW="sm" px={1}>
-          <FeatureList />
-        </Box>
+        <Flex
+          flex={{ md: "1" }}
+          direction="column"
+          align="center"
+          justify={{ base: "flex-start", md: "center" }}
+          gap={8}
+          px={{ base: 4, md: 12 }}
+          pt={{ md: 12 }}
+          pb={{ base: 10, md: 12 }}
+        >
+          <Card.Root
+            w="full"
+            maxW="sm"
+            variant="outline"
+            borderRadius="xl"
+            {...pageStaggerEnter(300)}
+          >
+            <Card.Body gap={5} p={{ base: 5, md: 6 }}>
+              <Stack gap={1} textAlign="center">
+                <Heading as="h2" size="lg">
+                  Sign in to your account
+                </Heading>
+                <Text fontSize="sm" color="fg.muted">
+                  Use your GitHub account to sign in and manage your expenses.
+                </Text>
+              </Stack>
+              <Button
+                size="lg"
+                w="full"
+                onClick={handleSignIn}
+                loading={signingIn}
+                loadingText="Redirecting to GitHub..."
+              >
+                <IconBrandGithub />
+                Sign in with GitHub
+              </Button>
+              <Text fontSize="xs" color="fg.subtle" textAlign="center">
+                Your data stays private to your account.
+              </Text>
+            </Card.Body>
+          </Card.Root>
+
+          <Box hideFrom="md" w="full" maxW="sm" px={1}>
+            <FeatureList />
+          </Box>
+        </Flex>
       </Flex>
     </Flex>
   );
