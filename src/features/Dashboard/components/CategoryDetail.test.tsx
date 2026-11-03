@@ -131,22 +131,44 @@ describe("CategoryDetail", () => {
     expect(onSelectMonth).toHaveBeenCalledWith(3);
   });
 
-  it("toggles bills shown in the chart", async () => {
+  it("shows only the clicked bill, then builds a selection", async () => {
+    const user = userEvent.setup();
+    renderDetail({
+      expenses: [
+        ...expenses,
+        makeExpense({ name: "Water", amount: 50, date: "2025-02-10T10:00" }),
+      ],
+    });
+    const chartLabels = () => chartProps.current?.series.map((s) => s.label);
+    const rent = screen.getByRole("button", { name: /Rent/ });
+    const condo = screen.getByRole("button", { name: /Condo fee/ });
+    const water = screen.getByRole("button", { name: /Water/ });
+
+    await user.click(condo);
+    await waitFor(() => expect(chartLabels()).toEqual(["Condo fee"]));
+    expect(condo).toHaveAttribute("aria-pressed", "true");
+    expect(rent).toHaveAttribute("aria-pressed", "false");
+    expect(water).toHaveAttribute("aria-pressed", "false");
+    expect(
+      screen.getByText("Bills shown in the chart (1/3)"),
+    ).toBeInTheDocument();
+
+    await user.click(water);
+    await waitFor(() => expect(chartLabels()).toEqual(["Condo fee", "Water"]));
+
+    await user.click(water);
+    await waitFor(() => expect(chartLabels()).toEqual(["Condo fee"]));
+  });
+
+  it("shows every bill again when clicking the only bill shown", async () => {
     const user = userEvent.setup();
     renderDetail();
-    const rent = screen.getByRole("checkbox", { name: /Rent/ });
-    expect(rent).toBeChecked();
+    const rent = screen.getByRole("button", { name: /Rent/ });
 
     await user.click(rent);
     await waitFor(() =>
-      expect(chartProps.current?.series.map((s) => s.label)).toEqual([
-        "Condo fee",
-      ]),
+      expect(chartProps.current?.series.map((s) => s.label)).toEqual(["Rent"]),
     );
-    expect(rent).not.toBeChecked();
-    expect(
-      screen.getByText("Bills shown in the chart (1/2)"),
-    ).toBeInTheDocument();
 
     await user.click(rent);
     await waitFor(() =>
@@ -155,6 +177,7 @@ describe("CategoryDetail", () => {
         "Condo fee",
       ]),
     );
+    expect(rent).toHaveAttribute("aria-pressed", "true");
   });
 
   it("clears and selects all bills", () => {
@@ -188,7 +211,7 @@ describe("CategoryDetail", () => {
     fireEvent.change(screen.getByRole("textbox", { name: "Filter bills" }), {
       target: { value: "Bill 3" },
     });
-    expect(screen.getAllByRole("checkbox")).toHaveLength(1);
+    expect(screen.getAllByRole("button", { pressed: true })).toHaveLength(1);
   });
 
   it("calls onClose from the close button", () => {

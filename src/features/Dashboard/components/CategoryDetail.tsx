@@ -2,7 +2,7 @@ import React from "react";
 import {
   Box,
   Button,
-  Checkbox,
+  Checkmark,
   CloseButton,
   HStack,
   Input,
@@ -150,10 +150,20 @@ export default function CategoryDetail({
       : bills;
   }, [bills, search]);
 
-  const toggleName = (name: string, visible: boolean) =>
+  // With every bill shown, a click isolates the bill; clicking the only bill
+  // shown restores all; otherwise it toggles the bill to build a selection.
+  const selectBill = (name: string) =>
     setHiddenNames((prev) => {
+      if (prev.size === 0) {
+        return new Set(
+          bills.map((bill) => bill.key).filter((key) => key !== name),
+        );
+      }
+      if (bills.length - prev.size === 1 && !prev.has(name)) {
+        return new Set();
+      }
       const next = new Set(prev);
-      if (visible) next.delete(name);
+      if (next.has(name)) next.delete(name);
       else next.add(name);
       return next;
     });
@@ -272,39 +282,32 @@ export default function CategoryDetail({
                   const color = generateColorByString(bill.key);
                   const visible = !hiddenNames.has(bill.key);
                   return (
-                    <Checkbox.Root
+                    <Button
                       key={bill.key}
-                      size="sm"
-                      checked={visible}
-                      onCheckedChange={(details) =>
-                        toggleName(bill.key, details.checked === true)
-                      }
-                      borderWidth="1px"
+                      size="xs"
+                      variant="outline"
+                      aria-pressed={visible}
+                      onClick={() => selectBill(bill.key)}
                       borderColor={visible ? color : "border.subtle"}
                       borderRadius="full"
                       px={2.5}
-                      py={1}
-                      cursor="pointer"
+                      fontWeight="normal"
                       opacity={visible ? 1 : 0.6}
                     >
-                      <Checkbox.HiddenInput />
-                      <Checkbox.Control
+                      <Checkmark
+                        size="sm"
+                        checked={visible}
                         borderColor={color}
                         bg={visible ? color : undefined}
                         color={visible ? "white" : undefined}
                       />
-                      <Checkbox.Label
-                        fontSize="xs"
-                        maxW="14rem"
-                        truncate
-                        title={bill.key}
-                      >
+                      <Text as="span" maxW="14rem" truncate title={bill.key}>
                         {bill.key}
-                      </Checkbox.Label>
-                      <Text fontSize="xs" color="fg.muted">
+                      </Text>
+                      <Text as="span" color="fg.muted">
                         {formatBRL(bill.total, true)}
                       </Text>
-                    </Checkbox.Root>
+                    </Button>
                   );
                 })}
               </Wrap>
