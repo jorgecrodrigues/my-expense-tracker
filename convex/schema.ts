@@ -89,6 +89,8 @@ export default defineSchema({
   creditCardStatements: defineTable(creditCardStatementFields)
     .index("by_userId", ["userId"])
     .index("by_userId_and_referenceMonth", ["userId", "referenceMonth"])
+    .index("by_userId_and_dueDate", ["userId", "dueDate"])
+    .index("by_userId_and_totalAmountCents", ["userId", "totalAmountCents"])
     .index("by_userId_and_issuer_and_referenceMonth", [
       "userId",
       "issuer",

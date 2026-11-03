@@ -14,12 +14,15 @@ import { requireUserId } from "./lib/auth";
 import {
   creditCardIssuerValidator,
   creditCardStatementExtractedFields,
+  creditCardStatementSortFieldValidator,
   creditCardStatementValidator,
   creditCardTransactionExtractedFields,
   creditCardTransactionValidator,
   periodTransactionValidator,
+  sortOrderValidator,
   statementReportValidator,
   yearReportValidator,
+  type CreditCardStatementSortField,
 } from "./lib/creditCardValidators";
 import {
   isStatementContentType,
@@ -151,18 +154,54 @@ export const createStatement = mutation({
   },
 });
 
+function statementsSortedBy(
+  ctx: QueryCtx,
+  userId: Id<"users">,
+  sortBy: CreditCardStatementSortField,
+) {
+  const statements = ctx.db.query("creditCardStatements");
+  switch (sortBy) {
+    case "uploadedAt":
+      return statements.withIndex("by_userId", (q) => q.eq("userId", userId));
+    case "referenceMonth":
+      return statements.withIndex("by_userId_and_referenceMonth", (q) =>
+        q.eq("userId", userId),
+      );
+    case "issuer":
+      return statements.withIndex(
+        "by_userId_and_issuer_and_referenceMonth",
+        (q) => q.eq("userId", userId),
+      );
+    case "dueDate":
+      return statements.withIndex("by_userId_and_dueDate", (q) =>
+        q.eq("userId", userId),
+      );
+    case "totalAmountCents":
+      return statements.withIndex("by_userId_and_totalAmountCents", (q) =>
+        q.eq("userId", userId),
+      );
+  }
+}
+
 /**
- * Lists the caller's statements, newest first.
+ * Lists the caller's statements, newest uploads first by default. Statements
+ * still missing the sort field (not analyzed yet) come first in ascending
+ * order and last in descending order.
+ *
+ * @param sortBy - The field to sort by.
+ * @param order - The sort direction.
  */
 export const listStatements = query({
-  args: { paginationOpts: paginationOptsValidator },
+  args: {
+    paginationOpts: paginationOptsValidator,
+    sortBy: v.optional(creditCardStatementSortFieldValidator),
+    order: v.optional(sortOrderValidator),
+  },
   returns: paginationResultValidator(creditCardStatementValidator),
   handler: async (ctx, args) => {
     const userId = await requireUserId(ctx);
-    return await ctx.db
-      .query("creditCardStatements")
-      .withIndex("by_userId", (q) => q.eq("userId", userId))
-      .order("desc")
+    return await statementsSortedBy(ctx, userId, args.sortBy ?? "uploadedAt")
+      .order(args.order ?? "desc")
       .paginate(args.paginationOpts);
   },
 });

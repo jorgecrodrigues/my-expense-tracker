@@ -1,23 +1,35 @@
 import React from "react";
-import { useMutation, usePaginatedQuery } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import {
   Badge,
   Box,
   Button,
+  ButtonGroup,
   HStack,
   IconButton,
+  NativeSelect,
   Skeleton,
   Stack,
   Table,
   Text,
 } from "@chakra-ui/react";
-import { IconRefresh, IconReportAnalytics } from "@tabler/icons-react";
+import {
+  IconArrowDown,
+  IconArrowUp,
+  IconChevronLeft,
+  IconChevronRight,
+  IconRefresh,
+  IconReportAnalytics,
+} from "@tabler/icons-react";
 import { useLocation } from "wouter";
-import useIntersectionObserver from "@/shared/hooks/useIntersectionObserver";
 import useIsMobile from "@/shared/hooks/useIsMobile";
 import { toaster } from "@/components/ui/toaster";
 import { api } from "../../../../convex/_generated/api";
 import type { Doc, Id } from "../../../../convex/_generated/dataModel";
+import type {
+  CreditCardStatementSortField,
+  SortOrder,
+} from "../../../../convex/lib/creditCardValidators";
 import RemoveStatementDialog from "../modals/RemoveStatement";
 import StatementStatusBadge from "./StatementStatusBadge";
 import {
@@ -27,8 +39,78 @@ import {
   issuerLabel,
 } from "../utils/creditCard";
 
-const PER_PAGE = 15;
+const PER_PAGE = 5;
 const COLUMNS = 6;
+
+type SortState = { key: CreditCardStatementSortField; direction: SortOrder };
+
+const DEFAULT_SORT: SortState = { key: "uploadedAt", direction: "desc" };
+
+const SORT_OPTIONS: { label: string; sort: SortState }[] = [
+  { label: "Recently uploaded", sort: DEFAULT_SORT },
+  {
+    label: "Month (newest)",
+    sort: { key: "referenceMonth", direction: "desc" },
+  },
+  {
+    label: "Month (oldest)",
+    sort: { key: "referenceMonth", direction: "asc" },
+  },
+  { label: "Due date (latest)", sort: { key: "dueDate", direction: "desc" } },
+  { label: "Due date (earliest)", sort: { key: "dueDate", direction: "asc" } },
+  {
+    label: "Total (highest)",
+    sort: { key: "totalAmountCents", direction: "desc" },
+  },
+  {
+    label: "Total (lowest)",
+    sort: { key: "totalAmountCents", direction: "asc" },
+  },
+  { label: "Issuer (A-Z)", sort: { key: "issuer", direction: "asc" } },
+  { label: "Issuer (Z-A)", sort: { key: "issuer", direction: "desc" } },
+];
+
+const sortValue = ({ key, direction }: SortState) => `${key}-${direction}`;
+
+function SortableHeader({
+  label,
+  sortKey,
+  sort,
+  onSort,
+}: {
+  label: string;
+  sortKey: CreditCardStatementSortField;
+  sort: SortState;
+  onSort: (key: CreditCardStatementSortField) => void;
+}) {
+  const active = sort.key === sortKey;
+  return (
+    <Table.ColumnHeader
+      aria-sort={
+        active
+          ? sort.direction === "asc"
+            ? "ascending"
+            : "descending"
+          : "none"
+      }
+    >
+      <Button
+        size="xs"
+        variant={active ? "subtle" : "ghost"}
+        onClick={() => onSort(sortKey)}
+        aria-label={`Sort by ${label}`}
+      >
+        {label}
+        {active &&
+          (sort.direction === "asc" ? (
+            <IconArrowUp size={12} />
+          ) : (
+            <IconArrowDown size={12} />
+          ))}
+      </Button>
+    </Table.ColumnHeader>
+  );
+}
 
 function StatementActions({
   statement,
@@ -77,21 +159,61 @@ export default function StatementsList() {
   const [, navigate] = useLocation();
   const isMobile = useIsMobile();
   const retryStatement = useMutation(api.creditCardStatements.retryStatement);
-  const { ref, entry } = useIntersectionObserver({
-    threshold: 1.0,
-    rootMargin: "0px",
+  const [sort, setSort] = React.useState<SortState>(DEFAULT_SORT);
+  // One cursor per visited page; the last one is the current page.
+  const [cursors, setCursors] = React.useState<(string | null)[]>([null]);
+  const pageIndex = cursors.length - 1;
+
+  const sortArgs = { sortBy: sort.key, order: sort.direction };
+  const currentPage = useQuery(api.creditCardStatements.listStatements, {
+    ...sortArgs,
+    paginationOpts: { numItems: PER_PAGE, cursor: cursors[pageIndex] },
   });
-  const { results, status, loadMore } = usePaginatedQuery(
+  // Prefetched so "Next" is instant and disabled when the next page is empty,
+  // which `isDone` alone does not guarantee.
+  const nextPage = useQuery(
     api.creditCardStatements.listStatements,
-    {},
-    { initialNumItems: PER_PAGE },
+    currentPage && !currentPage.isDone
+      ? {
+          ...sortArgs,
+          paginationOpts: {
+            numItems: PER_PAGE,
+            cursor: currentPage.continueCursor,
+          },
+        }
+      : "skip",
   );
 
-  React.useEffect(() => {
-    if (entry?.isIntersecting && status === "CanLoadMore") {
-      loadMore(PER_PAGE);
+  const statements = currentPage?.page ?? [];
+  const isLoading = currentPage === undefined;
+  const hasPreviousPage = pageIndex > 0;
+  const hasNextPage =
+    !!currentPage && !currentPage.isDone && nextPage?.page.length !== 0;
+
+  // Removing the last statement of the last page leaves it empty.
+  if (currentPage?.page.length === 0 && hasPreviousPage) {
+    setCursors(cursors.slice(0, -1));
+  }
+
+  const changeSort = (next: SortState) => {
+    setSort(next);
+    setCursors([null]);
+  };
+
+  const handleSort = (key: CreditCardStatementSortField) =>
+    changeSort(
+      sort.key === key
+        ? { key, direction: sort.direction === "asc" ? "desc" : "asc" }
+        : { key, direction: key === "issuer" ? "asc" : "desc" },
+    );
+
+  const goToNextPage = () => {
+    if (currentPage && hasNextPage) {
+      setCursors((prev) => [...prev, currentPage.continueCursor]);
     }
-  }, [entry?.isIntersecting, status, loadMore]);
+  };
+
+  const goToPreviousPage = () => setCursors((prev) => prev.slice(0, -1));
 
   const handleRetry = async (statementId: Id<"creditCardStatements">) => {
     try {
@@ -113,99 +235,161 @@ export default function StatementsList() {
     />
   );
 
-  const isLoading = status === "LoadingFirstPage" || status === "LoadingMore";
-  const loadMoreButton = status === "CanLoadMore" && (
-    <Button variant="surface" onClick={() => loadMore(PER_PAGE)}>
-      Load More
-    </Button>
-  );
-  const emptyState = status === "Exhausted" && results.length === 0 && (
+  const emptyState = currentPage?.page.length === 0 && !hasPreviousPage && (
     <Badge variant="outline" size="md" whiteSpace="normal">
       No statements yet. Upload a Nubank or Inter PDF above.
     </Badge>
   );
 
+  const sortSelect = (
+    <HStack justify="flex-end">
+      <NativeSelect.Root size="sm" width="auto">
+        <NativeSelect.Field
+          aria-label="Sort statements"
+          value={sortValue(sort)}
+          onChange={(event: React.ChangeEvent<HTMLSelectElement>) => {
+            const option = SORT_OPTIONS.find(
+              (item) => sortValue(item.sort) === event.target.value,
+            );
+            if (option) changeSort(option.sort);
+          }}
+        >
+          {SORT_OPTIONS.map((option) => (
+            <option
+              key={sortValue(option.sort)}
+              value={sortValue(option.sort)}
+            >
+              {option.label}
+            </option>
+          ))}
+        </NativeSelect.Field>
+        <NativeSelect.Indicator />
+      </NativeSelect.Root>
+    </HStack>
+  );
+
+  const pagination = (hasPreviousPage || hasNextPage) && (
+    <HStack justify="space-between">
+      <Text fontSize="sm" color="fg.muted">
+        Page {pageIndex + 1}
+      </Text>
+      <ButtonGroup size="sm" variant="ghost" attached>
+        <IconButton
+          aria-label="Previous page"
+          title="Previous page"
+          disabled={!hasPreviousPage}
+          onClick={goToPreviousPage}
+        >
+          <IconChevronLeft />
+        </IconButton>
+        <IconButton
+          aria-label="Next page"
+          title="Next page"
+          disabled={!hasNextPage}
+          onClick={goToNextPage}
+        >
+          <IconChevronRight />
+        </IconButton>
+      </ButtonGroup>
+    </HStack>
+  );
+
   if (isMobile) {
     return (
-      <>
-        <Stack gap={2}>
-          {results.length > 0 && (
-            <Stack as="ul" aria-label="Statements" gap={2} listStyleType="none">
-              {results.map((statement) => (
-                <Box
-                  as="li"
-                  key={statement._id}
-                  borderWidth="1px"
-                  borderColor="border.subtle"
-                  borderRadius="lg"
-                  bg="bg.panel"
-                  p={3}
-                >
-                  <HStack justify="space-between" align="flex-start" gap={3}>
-                    <Stack gap={0.5} minW={0}>
-                      <HStack gap={2} wrap="wrap">
-                        <Text fontSize="sm" fontWeight="medium">
-                          {formatReferenceMonth(statement.referenceMonth)}
-                        </Text>
-                        <StatementStatusBadge status={statement.status} />
-                      </HStack>
-                      <Text fontSize="xs" color="fg.muted">
-                        {issuerLabel(statement.issuer)}
-                        {statement.dueDate &&
-                          ` · Due ${formatDay(statement.dueDate)}`}
+      <Stack gap={2}>
+        {sortSelect}
+        {statements.length > 0 && (
+          <Stack as="ul" aria-label="Statements" gap={2} listStyleType="none">
+            {statements.map((statement) => (
+              <Box
+                as="li"
+                key={statement._id}
+                borderWidth="1px"
+                borderColor="border.subtle"
+                borderRadius="lg"
+                bg="bg.panel"
+                p={3}
+              >
+                <HStack justify="space-between" align="flex-start" gap={3}>
+                  <Stack gap={0.5} minW={0}>
+                    <HStack gap={2} wrap="wrap">
+                      <Text fontSize="sm" fontWeight="medium">
+                        {formatReferenceMonth(statement.referenceMonth)}
                       </Text>
-                      <Text fontSize="xs" color="fg.subtle" truncate>
-                        {statement.filename}
-                      </Text>
-                    </Stack>
-                    <Text
-                      fontSize="sm"
-                      fontWeight="semibold"
-                      whiteSpace="nowrap"
-                    >
-                      {formatTotal(statement)}
+                      <StatementStatusBadge status={statement.status} />
+                    </HStack>
+                    <Text fontSize="xs" color="fg.muted">
+                      {issuerLabel(statement.issuer)}
+                      {statement.dueDate &&
+                        ` · Due ${formatDay(statement.dueDate)}`}
                     </Text>
-                  </HStack>
-                  {statement.status === "failed" && statement.errorMessage && (
-                    <Text fontSize="xs" color="fg.error" mt={2}>
-                      {statement.errorMessage}
+                    <Text fontSize="xs" color="fg.subtle" truncate>
+                      {statement.filename}
                     </Text>
-                  )}
-                  <HStack justify="flex-end" mt={1}>
-                    {renderActions(statement)}
-                  </HStack>
-                </Box>
-              ))}
-            </Stack>
-          )}
-          {isLoading &&
-            Array.from({ length: 3 }).map((_, index) => (
-              <Skeleton key={index} variant="shine" height="88px" />
+                  </Stack>
+                  <Text fontSize="sm" fontWeight="semibold" whiteSpace="nowrap">
+                    {formatTotal(statement)}
+                  </Text>
+                </HStack>
+                {statement.status === "failed" && statement.errorMessage && (
+                  <Text fontSize="xs" color="fg.error" mt={2}>
+                    {statement.errorMessage}
+                  </Text>
+                )}
+                <HStack justify="flex-end" mt={1}>
+                  {renderActions(statement)}
+                </HStack>
+              </Box>
             ))}
-          {loadMoreButton}
-          {emptyState}
-        </Stack>
-        <div ref={ref} />
-      </>
+          </Stack>
+        )}
+        {isLoading &&
+          Array.from({ length: 3 }).map((_, index) => (
+            <Skeleton key={index} variant="shine" height="88px" />
+          ))}
+        {emptyState}
+        {pagination}
+      </Stack>
     );
   }
 
   return (
-    <>
+    <Stack gap={2}>
+      {sortSelect}
       <Table.ScrollArea>
         <Table.Root size="sm" striped>
           <Table.Header>
             <Table.Row>
-              <Table.ColumnHeader>Statement</Table.ColumnHeader>
-              <Table.ColumnHeader>Issuer</Table.ColumnHeader>
-              <Table.ColumnHeader>Due date</Table.ColumnHeader>
-              <Table.ColumnHeader>Total</Table.ColumnHeader>
+              <SortableHeader
+                label="Statement"
+                sortKey="referenceMonth"
+                sort={sort}
+                onSort={handleSort}
+              />
+              <SortableHeader
+                label="Issuer"
+                sortKey="issuer"
+                sort={sort}
+                onSort={handleSort}
+              />
+              <SortableHeader
+                label="Due date"
+                sortKey="dueDate"
+                sort={sort}
+                onSort={handleSort}
+              />
+              <SortableHeader
+                label="Total"
+                sortKey="totalAmountCents"
+                sort={sort}
+                onSort={handleSort}
+              />
               <Table.ColumnHeader>Status</Table.ColumnHeader>
               <Table.ColumnHeader w="1%">Actions</Table.ColumnHeader>
             </Table.Row>
           </Table.Header>
           <Table.Body>
-            {results.map((statement) => (
+            {statements.map((statement) => (
               <Table.Row key={statement._id}>
                 <Table.Cell fontSize="xs">
                   <Text fontWeight="medium">
@@ -247,12 +431,6 @@ export default function StatementsList() {
                 </Table.Row>
               ))}
 
-            {loadMoreButton && (
-              <Table.Row>
-                <Table.Cell colSpan={COLUMNS}>{loadMoreButton}</Table.Cell>
-              </Table.Row>
-            )}
-
             {emptyState && (
               <Table.Row>
                 <Table.Cell colSpan={COLUMNS}>{emptyState}</Table.Cell>
@@ -261,7 +439,7 @@ export default function StatementsList() {
           </Table.Body>
         </Table.Root>
       </Table.ScrollArea>
-      <div ref={ref} />
-    </>
+      {pagination}
+    </Stack>
   );
 }
