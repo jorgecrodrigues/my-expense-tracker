@@ -37,19 +37,7 @@ export default function Header() {
       gap={3}
     >
       <HStack gap={{ base: 2.5, md: 3 }} minW={0} flex="1">
-        <Box
-          flexShrink={0}
-          display="flex"
-          alignItems="center"
-          justifyContent="center"
-          p={1.5}
-          borderRadius="lg"
-          bg="bg.muted"
-          borderWidth="1px"
-          borderColor="border.subtle"
-        >
-          <BrandIcon boxSize={{ base: "9", md: "10" }} />
-        </Box>
+        <BrandIcon boxSize={{ base: "9", md: "10" }} />
         <VStack align="flex-start" gap={0} minW={0}>
           <Text
             as="span"

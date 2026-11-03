@@ -103,9 +103,9 @@ export default function SignIn() {
       pt="env(safe-area-inset-top)"
       pb="env(safe-area-inset-bottom)"
       bgGradient={{ md: "to-br" }}
-      gradientFrom="orange.600/25"
+      gradientFrom="green.500/25"
       gradientVia="bg"
-      gradientTo="purple.500/25"
+      gradientTo="teal.600/25"
     >
       <Flex
         w="full"
